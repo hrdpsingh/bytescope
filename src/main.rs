@@ -1,165 +1,147 @@
 use iced::{
-    Application, Background, Color, Command, Element, Font, Length, Settings, Theme,
-    border, executor,
-    font::Weight,
-    widget::{column, container, row, text},
+    Alignment, Background, Color, Element, Length, Sandbox, Settings, Theme,
+    widget::{button, column, container, row, text},
 };
-use nix::sys::utsname::uname;
-use std::{env, fs, path::Path};
-use sysinfo::{Disks, System};
 
 fn main() -> iced::Result {
-    ByteScope::run(Settings::default())
+    Probe::run(Settings::default())
 }
 
-fn card(_theme: &iced::Theme) -> container::Appearance {
-    container::Appearance {
-        background: Some(Background::Color(Color::from_rgb8(240, 245, 250))),
-        border: border::Border {
-            radius: 12.0.into(),
-            width: 0.0,
-            color: Color::TRANSPARENT,
-        },
-        text_color: None,
-        ..Default::default()
-    }
-}
-
-struct ByteScope {
-    hostname: String,
-    kernel: String,
-    os: String,
-    display_server: String,
-    ram: u64,
-    storage: u64,
-    cpu: String,
-    product_name: String,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Page {
+    Overview,
+    Cpu,
 }
 
 #[derive(Debug, Clone)]
-enum Message {}
+enum Message {
+    Navigate(Page),
+}
 
-impl Application for ByteScope {
-    type Executor = executor::Default;
-    type Message = Message;
-    type Theme = Theme;
-    type Flags = ();
+struct Probe {
+    page: Page,
+}
 
-    fn new(_flags: ()) -> (Self, Command<Message>) {
-        let hostname = match hostname::get() {
-            Ok(val) => val.to_string_lossy().to_string(),
-            Err(_) => "Unavailable".to_string(),
+struct SidebarButton {
+    active: bool,
+}
+
+impl button::StyleSheet for SidebarButton {
+    type Style = Theme;
+
+    fn active(&self, style: &Self::Style) -> button::Appearance {
+        let background = if self.active {
+            Color::from_rgb8(230, 240, 250)
+        } else {
+            Color::from_rgb8(240, 245, 250)
         };
 
-        let kernel = match uname() {
-            Ok(val) => val.release().to_string_lossy().to_string(),
-            Err(_) => "Unavailable".to_string(),
-        };
-
-        let os = os_info::get().to_string();
-
-        let display_server = match env::var("XDG_SESSION_TYPE") {
-            Ok(val) => val,
-            Err(_) => "Unavailable".to_string(),
-        };
-
-        let mut sys = System::new();
-        sys.refresh_memory();
-        let ram = sys.total_memory();
-
-        let storage = Disks::new_with_refreshed_list()
-            .list()
-            .iter()
-            .find(|disk| disk.mount_point() == Path::new("/"))
-            .map(|disk| disk.total_space())
-            .expect("Unavailable");
-
-        let cpuinfo = fs::read_to_string("/proc/cpuinfo").unwrap();
-        let mut cpu = "Unavailable".to_string();
-        for line in cpuinfo.lines() {
-            if line.starts_with("model name")
-                && let Some((_, name)) = line.split_once(':')
-            {
-                cpu = name.trim().to_string();
-            }
-        }
-
-        let product_name = fs::read_to_string("/sys/devices/virtual/dmi/id/product_name")
-            .unwrap_or_else(|_| "Unknown".into());
-
-        (
-            Self {
-                hostname,
-                kernel,
-                os,
-                display_server,
-                ram,
-                storage,
-                cpu,
-                product_name,
+        button::Appearance {
+            background: Some(Background::Color(background)),
+            text_color: Color::from_rgb8(0, 0, 0),
+            border: iced::Border {
+                radius: 8.0.into(),
+                width: 0.0,
+                color: Color::TRANSPARENT,
             },
-            Command::none(),
-        )
+            ..style.active(&iced::theme::Button::Primary)
+        }
+    }
+
+    fn hovered(&self, style: &Self::Style) -> button::Appearance {
+        button::Appearance {
+            background: Some(Background::Color(Color::from_rgb8(230, 240, 250))),
+            text_color: Color::from_rgb8(0, 0, 0),
+            border: iced::Border {
+                radius: 8.0.into(),
+                width: 0.0,
+                color: Color::TRANSPARENT,
+            },
+            ..style.active(&iced::theme::Button::Primary)
+        }
+    }
+
+    fn pressed(&self, style: &Self::Style) -> button::Appearance {
+        self.active(style)
+    }
+
+    fn disabled(&self, style: &Self::Style) -> button::Appearance {
+        style.disabled(&iced::theme::Button::Primary)
+    }
+}
+
+impl Sandbox for Probe {
+    type Message = Message;
+
+    fn new() -> Self {
+        Self {
+            page: Page::Overview,
+        }
     }
 
     fn title(&self) -> String {
-        String::from("ByteScope")
+        String::from("Probe")
     }
 
-    fn update(&mut self, _message: Message) -> Command<Message> {
-        Command::none()
+    fn update(&mut self, message: Message) {
+        match message {
+            Message::Navigate(page) => {
+                self.page = page;
+            }
+        }
     }
 
     fn view(&self) -> Element<'_, Message> {
-        let software = container(
+        let sidebar = container(
             column![
-                text("Software")
-                    .font(Font {
-                        weight: Weight::Bold,
-                        ..Font::default()
-                    }),
-                text(format!("Hostname: {}", self.hostname)),
-                text(format!("Kernel: {}", self.kernel)),
-                text(format!("OS: {}", self.os)),
-                text(format!("Display Server: {}", self.display_server)),
+                button("Overview")
+                    .on_press(Message::Navigate(Page::Overview))
+                    .width(Length::Fill)
+                    .style(iced::theme::Button::Custom(Box::new(SidebarButton {
+                        active: self.page == Page::Overview,
+                    }))),
+                button("CPU")
+                    .on_press(Message::Navigate(Page::Cpu))
+                    .width(Length::Fill)
+                    .style(iced::theme::Button::Custom(Box::new(SidebarButton {
+                        active: self.page == Page::Cpu,
+                    }))),
             ]
-            .padding(20)
-            .spacing(10),
-        )
-        .style(card);
-
-        let hardware = container(
-            column![
-                text("Hardware")
-                    .font(Font {
-                        weight: Weight::Bold,
-                        ..Font::default()
-                    }),
-                text(format!(
-                    "Memory: {:.2} GB",
-                    self.ram as f64 / (1024.0 * 1024.0 * 1024.0)
-                )),
-                text(format!(
-                    "Storage: {:.2} GB",
-                    self.storage as f64 / (1024.0 * 1024.0 * 1024.0)
-                )),
-                text(format!("CPU: {}", self.cpu)),
-                text(format!("Product Name: {}", self.product_name)),
-            ]
-            .padding(20)
-            .spacing(10),
-        )
-        .style(card);
-
-        container(row![software, hardware,].spacing(20).padding(20))
-            .width(Length::Fill)
+            .spacing(10)
+            .padding(10)
+            .width(Length::Fixed(150.0))
             .height(Length::Fill)
-            .style(|_theme: &Theme| container::Appearance {
-                background: Some(Color::from_rgb(0.902, 0.941, 0.980).into()),
-                ..Default::default()
-            })
-            .center_x()
-            .center_y()
+            .align_items(Alignment::Start),
+        )
+        .style(|_theme: &Theme| container::Appearance {
+            background: Some(Color::from_rgb8(240, 245, 250).into()),
+            ..Default::default()
+        });
+
+        let content = match self.page {
+            Page::Overview => container(text("Overview page"))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .center_x()
+                .center_y()
+                .style(|_theme: &Theme| container::Appearance {
+                    background: Some(Color::from_rgb8(230, 240, 250).into()),
+                    ..Default::default()
+                }),
+            Page::Cpu => container(text("CPU page"))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .center_x()
+                .center_y()
+                .style(|_theme: &Theme| container::Appearance {
+                    background: Some(Color::from_rgb8(230, 240, 250).into()),
+                    ..Default::default()
+                }),
+        };
+
+        row![sidebar, content]
+            .height(Length::Fill)
+            .width(Length::Fill)
             .into()
     }
 }
