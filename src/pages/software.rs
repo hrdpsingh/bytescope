@@ -1,12 +1,9 @@
-use crate::{
-    app::Message,
-    components::{card, heading},
-};
+use crate::{app::Message, components::category};
 use iced::Element;
-use iced::widget::{column, row, text};
+use iced::widget::{column, text};
 
 pub fn view<'a>() -> Element<'a, Message> {
-    let content = row![text("Version")];
-
-    column![heading::view("Kernel"), card::view(content)].into()
+    column![category::view("Kernel", column![text("Version")]),]
+        .spacing(20)
+        .into()
 }

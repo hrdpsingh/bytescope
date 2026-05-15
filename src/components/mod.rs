@@ -1,5 +1,4 @@
 pub mod button;
-pub mod card;
+pub mod category;
 pub mod field;
-pub mod heading;
 pub mod sidebar;

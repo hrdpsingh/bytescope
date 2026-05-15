@@ -35,15 +35,18 @@ impl Probe {
             Page::Firmware => firmware::view(),
         };
 
-        row![
-            sidebar::view(self.page),
-            container(content)
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .center_x(Length::Fill)
-                .center_y(Length::Fill)
-                .style(|_| container::Style::default().background(Color::from_rgb8(235, 235, 235)))
-        ]
+        container(
+            row![
+                sidebar::view(self.page),
+                container(content)
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .center_x(Length::Fill)
+            ]
+            .spacing(40),
+        )
+        .padding(40)
+        .style(|_| container::Style::default().background(Color::from_rgb8(235, 240, 245)))
         .into()
     }
 }
