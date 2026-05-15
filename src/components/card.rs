@@ -1,6 +1,6 @@
 use crate::app::Message;
 use iced::{
-    Color, Element, Renderer, Theme, Length, border,
+    Color, Element, Length, Renderer, Theme, border,
     widget::{Row, container},
 };
 

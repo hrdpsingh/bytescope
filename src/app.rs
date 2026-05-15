@@ -5,7 +5,7 @@ use crate::{
 };
 
 use iced::{
-    Element, Length, Color,
+    Color, Element, Length,
     widget::{container, row},
 };
 

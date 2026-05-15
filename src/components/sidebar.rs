@@ -1,39 +1,18 @@
-use crate::{app::Message, components::styles, models::Page};
+use crate::{app::Message, components::button, models::Page};
 use iced::{
-    Element, Length,
-    widget::{button, column, container},
+    Color, Element, Length,
+    widget::{column, container},
 };
 
 pub fn view<'a>(page: Page) -> Element<'a, Message> {
-    container(
-        column![
-            button("Software")
-                .on_press(Message::Navigate(Page::Software))
-                .padding(8)
-                .width(Length::Fill)
-                .style(move |theme, status| {
-                    styles::sidebar_button(theme, status, page == Page::Software)
-                }),
-            button("Hardware")
-                .on_press(Message::Navigate(Page::Hardware))
-                .padding(8)
-                .width(Length::Fill)
-                .style(move |theme, status| {
-                    styles::sidebar_button(theme, status, page == Page::Hardware)
-                }),
-            button("Firmware")
-                .on_press(Message::Navigate(Page::Firmware))
-                .padding(8)
-                .width(Length::Fill)
-                .style(move |theme, status| {
-                    styles::sidebar_button(theme, status, page == Page::Firmware)
-                }),
-        ]
-        .spacing(10),
-    )
+    container(column![
+        button::view("Software", Page::Software, page),
+        button::view("Hardware", Page::Hardware, page),
+        button::view("Firmware", Page::Firmware, page),
+    ])
     .width(120)
     .height(Length::Fill)
     .padding(10)
-    .style(styles::sidebar)
+    .style(|_| container::Style::default().background(Color::from_rgb8(255, 255, 255)))
     .into()
 }
