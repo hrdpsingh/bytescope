@@ -1,21 +1,35 @@
 use crate::{
-    Probe,
     components::sidebar,
+    models::Page,
     pages::{firmware, hardware, software},
-    state::Page,
 };
-
 use iced::{
-    Color, Element, Length, Subscription,
+    Color, Element, Length, Subscription, time,
     widget::{container, row},
 };
 use std::time::Duration;
 use sysinfo::System;
 
+pub struct Probe {
+    page: Page,
+    system: System,
+    cpu_usage_history: Vec<f32>,
+}
+
+impl Default for Probe {
+    fn default() -> Self {
+        Self {
+            page: Page::default(),
+            system: System::new_all(),
+            cpu_usage_history: vec![0.0; 60],
+        }
+    }
+}
+
 #[derive(Clone)]
 pub enum Message {
     Navigate(Page),
-    Tick(f32),
+    Tick,
 }
 
 impl Probe {
@@ -24,9 +38,11 @@ impl Probe {
             Message::Navigate(page) => {
                 self.page = page;
             }
-            Message::Tick(cpu_usage) => {
-                self.cpu_usage_history.push(cpu_usage);
+            Message::Tick => {
+                self.system.refresh_cpu_all();
+                let cpu_usage = self.system.global_cpu_usage();
                 self.cpu_usage_history.remove(0);
+                self.cpu_usage_history.push(cpu_usage);
             }
         }
     }
@@ -54,15 +70,6 @@ impl Probe {
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
-        iced::time::every(Duration::from_secs(1)).map(|_| {
-            let mut sys = System::new_all();
-            sys.refresh_cpu_all();
-
-            std::thread::sleep(std::time::Duration::from_millis(100));
-            sys.refresh_cpu_all();
-
-            let global_cpu = sys.global_cpu_usage();
-            Message::Tick(global_cpu)
-        })
+        time::every(Duration::from_secs(1)).map(|_| Message::Tick)
     }
 }
